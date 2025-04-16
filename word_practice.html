@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Word Pronunciation Practice</h5>
+            <div>
+                <a href="/dashboard" class="btn btn-light btn-sm">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <h4>Practice Your Word Pronunciation</h4>
+                <p class="lead" id="instruction-text">Listen to each word and practice its pronunciation.</p>
+            </div>
+
+            <div id="noWordsSection" class="text-center" style="display: none;">
+                <div class="alert alert-success">
+                    <h4>Great job!</h4>
+                    <p>You don't have any words to practice. Keep up the good work!</p>
+                </div>
+                <div class="mt-4">
+                    <a href="/dashboard" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-home"></i> Return to Dashboard
+                    </a>
+                    <a href="/assessment4" class="btn btn-warning btn-lg">
+                        <i class="fas fa-redo"></i> Try Assessment Again
+                    </a>
+                </div>
+            </div>
+
+            <div id="wordDisplay" class="text-center mb-4">
+                <div class="current-word display-1 mb-3">-</div>
+                <div class="btn-group" role="group" id="wordControls">
+                    <button class="btn btn-primary btn-lg me-2" id="prevWord" disabled>
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    <button class="btn btn-success btn-lg me-2" id="speakWord">
+                        <i class="fas fa-volume-up"></i> Hear Again
+                    </button>
+                    <button class="btn btn-primary btn-lg" id="nextWord" disabled>
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <a href="/assessment4" class="btn btn-warning btn-lg">
+                        <i class="fas fa-redo"></i> Try Assessment Again
+                    </a>
+                </div>
+            </div>
+
+            <div id="nextAssessmentSection" class="text-center" style="display: none;">
+                <div class="alert alert-success">
+                    <h4>Great job practicing!</h4>
+                    <p>You've completed the word pronunciation practice.</p>
+                </div>
+                <div class="mt-4">
+                    <a href="/dashboard" class="btn btn-primary btn-lg me-2">
+                        <i class="fas fa-home"></i> Return to Dashboard
+                    </a>
+                    <a href="/assessment4" class="btn btn-warning btn-lg">
+                        <i class="fas fa-redo"></i> Try Assessment Again
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.current-word {
+    font-size: 8rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    margin: 2rem 0;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+    .current-word {
+        font-size: 6rem;
+    }
+}
+</style>
+
+<script>
+let incorrectWords = [];
+let currentIndex = -1;
+let speakTimeout = null;
+
+// Fetch incorrect words from the latest assessment
+async function fetchIncorrectWords() {
+    try {
+        const response = await fetch('/api/get-incorrect-words');
+        const data = await response.json();
+        
+        if (data.success) {
+            incorrectWords = data.words;
+            if (incorrectWords.length > 0) {
+                showWord(0);
+                updateControls();
+            } else {
+                // If no incorrect words, show no words section
+                document.getElementById('wordDisplay').style.display = 'none';
+                document.getElementById('noWordsSection').style.display = 'block';
+            }
+        } else {
+            console.error('Error fetching incorrect words:', data.error);
+            // Show error message to user
+            document.getElementById('wordDisplay').style.display = 'none';
+            document.getElementById('noWordsSection').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        // Show error message to user
+        document.getElementById('wordDisplay').style.display = 'none';
+        document.getElementById('noWordsSection').style.display = 'block';
+    }
+}
+
+// Show the selected word
+function showWord(index) {
+    currentIndex = index;
+    const word = incorrectWords[index];
+    
+    // Update display with animation
+    const wordElement = document.querySelector('.current-word');
+    wordElement.style.opacity = '0';
+    wordElement.style.transform = 'scale(0.9)';
+    
+    setTimeout(() => {
+        wordElement.textContent = word;
+        wordElement.style.opacity = '1';
+        wordElement.style.transform = 'scale(1)';
+    }, 100);
+    
+    // Speak the word after a short delay
+    if (speakTimeout) {
+        clearTimeout(speakTimeout);
+    }
+    speakTimeout = setTimeout(() => {
+        speakWord(word);
+    }, 300);
+    
+    // Update controls
+    updateControls();
+}
+
+// Speak the current word
+function speakWord(word) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    // Create utterance for the word
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.8;  // Slightly slower rate
+    utterance.pitch = 1.1; // Slightly higher pitch for clarity
+    utterance.volume = 1;  // Maximum volume
+    utterance.lang = 'en-US'; // Force English pronunciation
+    
+    // Wait for voices to be loaded
+    window.speechSynthesis.onvoiceschanged = () => {
+        const voices = window.speechSynthesis.getVoices();
+        // Try to find Microsoft Zira (female voice)
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        // Fallback to any English female voice if Zira not found
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        // Use the selected voice
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        
+        window.speechSynthesis.speak(utterance);
+    };
+    
+    // Initial speak attempt (in case voices are already loaded)
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Update navigation controls
+function updateControls() {
+    document.getElementById('prevWord').disabled = currentIndex <= 0;
+    document.getElementById('nextWord').disabled = currentIndex >= incorrectWords.length - 1;
+}
+
+// Show next assessment section
+function showNextAssessment() {
+    document.getElementById('wordDisplay').style.display = 'none';
+    document.getElementById('nextAssessmentSection').style.display = 'block';
+}
+
+// Event listeners
+document.getElementById('prevWord').addEventListener('click', () => {
+    if (currentIndex > 0) {
+        showWord(currentIndex - 1);
+    }
+});
+
+document.getElementById('nextWord').addEventListener('click', () => {
+    if (currentIndex < incorrectWords.length - 1) {
+        showWord(currentIndex + 1);
+    } else {
+        // Show next assessment section only when clicking next on the last word
+        showNextAssessment();
+    }
+});
+
+document.getElementById('speakWord').addEventListener('click', () => {
+    if (currentIndex >= 0) {
+        showWord(currentIndex);
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', fetchIncorrectWords);
+</script>
+{% endblock %} 

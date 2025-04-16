@@ -1,0 +1,509 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Circle Counting Assessment</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Welcome to your Circle Counting Assessment</h4>
+                    <p>This assessment will help us understand your ability to count circles. You'll be shown different collections of circles and asked to count them.</p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Count the Circles</h5>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button id="startAssessment" class="btn btn-lg btn-success">
+                            <i class="fas fa-play"></i> Start Assessment
+                        </button>
+                    </div>
+
+                    <div id="assessmentContent" class="mt-4" style="display: none;">
+                        <div class="progress mb-4">
+                            <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <div class="question-container text-center">
+                            <div id="shapeDisplay" class="mb-4" style="min-height: 200px;"></div>
+                            <div id="optionsContainer" class="d-flex justify-content-center flex-wrap gap-2 mb-3">
+                                <!-- Options will be inserted here -->
+                            </div>
+                            <div id="feedback" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div id="results" class="mt-4" style="display: none;">
+                        <!-- Results will be shown here -->
+                    </div>
+
+                    <div id="learningContent" class="mt-4" style="display: none;">
+                        <h4 class="text-center mb-4">Learning Phase</h4>
+                        <div id="learningDisplay" class="text-center mb-4">
+                            <!-- Learning content will be inserted here -->
+                        </div>
+                        <div class="text-center">
+                            <button id="nextLearning" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right"></i> Next
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="learningComplete" class="mt-4" style="display: none;">
+                        <div class="text-center">
+                            <h4>Learning Complete!</h4>
+                            <p class="lead">You've reviewed all the questions you found challenging.</p>
+                            <div class="mt-4">
+                                <a href="/assessment2" class="btn btn-primary btn-lg">
+                                    <i class="fas fa-arrow-right"></i> Next Assessment
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .progress-history {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .progress-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .progress-item:last-child {
+        border-bottom: none;
+    }
+    .progress-indicator {
+        color: #6c757d;
+    }
+
+    /* Animation styles */
+    .correct-animation {
+        animation: correctPulse 1s ease-in-out;
+    }
+
+    .incorrect-animation {
+        animation: incorrectShake 0.5s ease-in-out;
+    }
+
+    @keyframes correctPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes incorrectShake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        75% { transform: translateX(10px); }
+    }
+
+    .feedback-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .feedback-icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+    }
+
+    .feedback-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .fade-out {
+        animation: fadeOut 0.5s ease-in-out forwards;
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+</style>
+
+<script>
+let currentQuestion = 0;
+let score = 0;
+let totalQuestions = 9;
+let incorrectAnswers = [];
+let learningIndex = 0;
+let assessmentRound = 1;
+let previousScores = [];
+let currentCollections = []; // New variable to hold current assessment collections
+
+// Define circle collections with distinct numbers 1-9
+const shapeCollections = [
+    { shapes: Array(1).fill('circle'), count: 1 },
+    { shapes: Array(2).fill('circle'), count: 2 },
+    { shapes: Array(3).fill('circle'), count: 3 },
+    { shapes: Array(4).fill('circle'), count: 4 },
+    { shapes: Array(5).fill('circle'), count: 5 },
+    { shapes: Array(6).fill('circle'), count: 6 },
+    { shapes: Array(7).fill('circle'), count: 7 },
+    { shapes: Array(8).fill('circle'), count: 8 },
+    { shapes: Array(9).fill('circle'), count: 9 }
+];
+
+function getShapeIcon(shape) {
+    return 'fa-circle';
+}
+
+function isSequential(array) {
+    for (let i = 1; i < array.length; i++) {
+        if (array[i].count === array[i-1].count + 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function getShuffledCollections() {
+    let shuffledCollections = shuffleArray(shapeCollections);
+    
+    // Keep shuffling until we get a non-sequential order
+    while (isSequential(shuffledCollections)) {
+        shuffledCollections = shuffleArray(shapeCollections);
+    }
+    
+    return shuffledCollections;
+}
+
+function generateOptions(correctCount) {
+    const options = [correctCount];
+    const allNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    
+    // Remove the correct count from available numbers
+    const availableNumbers = allNumbers.filter(num => num !== correctCount);
+    
+    // Randomly select 3 other numbers
+    while (options.length < 4) {
+        const randomIndex = Math.floor(Math.random() * availableNumbers.length);
+        const selectedNumber = availableNumbers[randomIndex];
+        if (!options.includes(selectedNumber)) {
+            options.push(selectedNumber);
+        }
+    }
+    
+    return shuffleArray(options);
+}
+
+function startAssessment() {
+    document.getElementById('startAssessment').style.display = 'none';
+    document.getElementById('assessmentContent').style.display = 'block';
+    
+    // Get properly shuffled collections
+    currentCollections = getShuffledCollections();
+    showQuestion();
+}
+
+function showQuestion() {
+    const currentCollection = currentCollections[currentQuestion];
+    const shapeDisplay = document.getElementById('shapeDisplay');
+    const optionsContainer = document.getElementById('optionsContainer');
+    const feedback = document.getElementById('feedback');
+    
+    // Reset UI
+    feedback.innerHTML = '';
+    feedback.className = 'mt-3';
+    
+    // Show circles with larger size and more spacing
+    shapeDisplay.innerHTML = currentCollection.shapes.map(() => 
+        `<i class="fas fa-circle fa-4x mx-3" style="color: #3498db;"></i>`
+    ).join('');
+    
+    // Generate and show options with larger size
+    const options = generateOptions(currentCollection.count);
+    optionsContainer.innerHTML = options.map(option => `
+        <button class="btn btn-outline-primary btn-lg option-btn" style="min-width: 100px; font-size: 1.5rem; padding: 15px 25px; margin: 5px;" data-value="${option}">
+            ${option}
+        </button>
+    `).join('');
+    
+    // Add click handlers to options
+    document.querySelectorAll('.option-btn').forEach(btn => {
+        btn.addEventListener('click', () => checkAnswer(parseInt(btn.dataset.value)));
+    });
+    
+    // Update progress
+    const progress = ((currentQuestion + 1) / totalQuestions) * 100;
+    document.querySelector('.progress-bar').style.width = `${progress}%`;
+}
+
+function checkAnswer(selectedAnswer) {
+    const currentCollection = currentCollections[currentQuestion];
+    const feedback = document.getElementById('feedback');
+    const options = document.querySelectorAll('.option-btn');
+    
+    // Disable all options
+    options.forEach(btn => btn.disabled = true);
+    
+    const isCorrect = selectedAnswer === currentCollection.count;
+    if (isCorrect) {
+        feedback.textContent = 'Correct!';
+        feedback.className = 'mt-3 text-success';
+        score++;
+        showFeedback(true);
+    } else {
+        feedback.textContent = `Incorrect. The correct count was ${currentCollection.count}`;
+        feedback.className = 'mt-3 text-danger';
+        showFeedback(false);
+        // Store incorrect answer for learning phase
+        incorrectAnswers.push({
+            collection: currentCollection,
+            questionIndex: currentQuestion,
+            userAnswer: selectedAnswer
+        });
+    }
+    
+    // Move to next question after 2 seconds
+    setTimeout(() => {
+        currentQuestion++;
+        if (currentQuestion < totalQuestions) {
+            showQuestion();
+        } else {
+            showResults();
+        }
+    }, 2000);
+}
+
+function showResults() {
+    const assessmentContent = document.getElementById('assessmentContent');
+    const resultsDiv = document.getElementById('results');
+    const percentage = Math.round((score / totalQuestions) * 100);
+    
+    // Hide assessment content and show results
+    assessmentContent.style.display = 'none';
+    resultsDiv.style.display = 'block';
+    
+    // Save score to the database
+    fetch('/api/save-assessment-score', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            score: score,
+            total: totalQuestions
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error saving score:', data.error);
+        }
+        
+        // Store score in previous scores array
+        previousScores.push(percentage);
+        
+        // Update results display
+        let resultContent = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="score-info mb-4">
+                    <h5>Your Score: ${score}/${totalQuestions}</h5>
+                    <p class="text-muted">Percentage: ${percentage}%</p>
+                </div>`;
+        
+        // Add progress history if there are previous scores
+        if (previousScores.length > 1) {
+            resultContent += generateProgressSummary();
+        }
+        
+        // Show appropriate next steps based on score
+        if (incorrectAnswers.length > 0) {
+            resultContent += `
+                <div class="mt-4">
+                    <p>Let's review the questions you found challenging.</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button onclick="startLearning()" class="btn btn-primary btn-lg">
+                            <i class="fas fa-book"></i> Start Learning Phase
+                        </button>
+                        <button onclick="restartAssessment()" class="btn btn-warning btn-lg">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-home"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>`;
+        } else {
+            resultContent += `
+                <div class="mt-4">
+                    <p class="text-success">Excellent work! You're ready for the next assessment.</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/assessment2" class="btn btn-primary btn-lg">
+                            <i class="fas fa-arrow-right"></i> Next Assessment
+                        </a>
+                        <button onclick="restartAssessment()" class="btn btn-warning btn-lg">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-home"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>`;
+        }
+        
+        resultContent += '</div>';
+        resultsDiv.innerHTML = resultContent;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resultsDiv.innerHTML = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="score-info mb-4">
+                    <h5>Your Score: ${score}/${totalQuestions}</h5>
+                    <p class="text-muted">Percentage: ${percentage}%</p>
+                </div>
+                <div class="alert alert-warning">
+                    There was an error saving your score. Please try again later.
+                </div>
+                <div class="mt-4">
+                    <a href="/assessment2" class="btn btn-primary btn-lg">
+                        <i class="fas fa-arrow-right"></i> Next Assessment
+                    </a>
+                </div>
+            </div>`;
+    });
+}
+
+function generateProgressSummary() {
+    if (previousScores.length <= 1) return '';
+    
+    let summary = '<div class="progress-history"><h5>Your Progress</h5>';
+    previousScores.forEach((score, index) => {
+        const improvement = index > 0 ? score - previousScores[index - 1] : 0;
+        const improvementClass = improvement > 0 ? 'text-success' : improvement < 0 ? 'text-danger' : '';
+        const improvementIcon = improvement > 0 ? '↑' : improvement < 0 ? '↓' : '→';
+        
+        summary += `
+            <div class="progress-item">
+                <span>Round ${index + 1}: ${score}%</span>
+                ${index > 0 ? `<span class="${improvementClass}">
+                    ${improvementIcon} ${Math.abs(improvement)}%
+                </span>` : ''}
+            </div>`;
+    });
+    summary += '</div>';
+    return summary;
+}
+
+function showFeedback(isCorrect) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'feedback-container';
+    
+    const icon = isCorrect ? '🎉' : '❌';
+    const text = isCorrect ? 'Correct!' : 'Try Again!';
+    const textColor = isCorrect ? '#28a745' : '#dc3545';
+    
+    feedbackContainer.innerHTML = `
+        <div class="feedback-icon">${icon}</div>
+        <div class="feedback-text" style="color: ${textColor}">${text}</div>
+    `;
+    
+    document.body.appendChild(feedbackContainer);
+    
+    setTimeout(() => {
+        feedbackContainer.classList.add('fade-out');
+        setTimeout(() => {
+            document.body.removeChild(feedbackContainer);
+        }, 500);
+    }, 1500);
+}
+
+function startLearning() {
+    document.getElementById('assessmentContent').style.display = 'none';
+    document.getElementById('learningContent').style.display = 'block';
+    learningIndex = 0;
+    showLearningItem();
+}
+
+function showLearningItem() {
+    if (learningIndex >= incorrectAnswers.length) {
+        // Learning phase complete - show completion message
+        document.getElementById('learningContent').style.display = 'none';
+        document.getElementById('learningComplete').style.display = 'block';
+        return;
+    }
+
+    const item = incorrectAnswers[learningIndex];
+    const learningDisplay = document.getElementById('learningDisplay');
+    
+    learningDisplay.innerHTML = `
+        <div class="mb-4">
+            <h5>Let's practice counting these circles:</h5>
+            <div class="mb-3">
+                ${item.collection.shapes.map(() => 
+                    `<i class="fas fa-circle fa-5x mx-3" style="color: #3498db;"></i>`
+                ).join('')}
+            </div>
+            <p class="lead" style="font-size: 1.5rem;">Count the circles: ${item.collection.count}</p>
+            <p class="text-muted">Take your time to count carefully!</p>
+            <div class="progress-indicator mt-3">
+                <small>Question ${learningIndex + 1} of ${incorrectAnswers.length}</small>
+            </div>
+        </div>
+    `;
+}
+
+function nextLearningItem() {
+    learningIndex++;
+    showLearningItem();
+}
+
+document.getElementById('startAssessment').addEventListener('click', startAssessment);
+document.getElementById('nextLearning').addEventListener('click', nextLearningItem);
+
+// Add CSS for progress summary
+const style = document.createElement('style');
+style.textContent = `
+    .progress-history {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .progress-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .progress-item:last-child {
+        border-bottom: none;
+    }
+    .progress-indicator {
+        color: #6c757d;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %} 

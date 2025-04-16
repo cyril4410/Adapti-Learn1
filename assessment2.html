@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Shape Matching Assessment</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Welcome to your Shape Matching Assessment</h4>
+                    <p>This assessment will help you practice matching shapes. Drag and drop shapes into their matching containers.</p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Match the Shapes</h5>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button id="startAssessment" class="btn btn-lg btn-success">
+                            <i class="fas fa-play"></i> Start Assessment
+                        </button>
+                    </div>
+
+                    <div id="assessmentContent" class="mt-4" style="display: none;">
+                        <div class="question-container text-center">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">Drag</h5>
+                                    <div id="shapesContainer" class="shapes-container mb-4">
+                                        <!-- Shapes will be inserted here -->
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">Drop</h5>
+                                    <div id="dropContainers" class="drop-containers">
+                                        <!-- Drop containers will be inserted here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="feedback" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div id="results" class="mt-4" style="display: none;">
+                        <!-- Results will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .shapes-container {
+        min-height: 300px;
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .drop-containers {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .drop-container {
+        width: 100px;
+        height: 100px;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f8f9fa;
+    }
+
+    .shape {
+        width: 80px;
+        height: 80px;
+        cursor: move;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 2rem;
+        user-select: none;
+        margin: 0 auto;
+    }
+
+    .shape.dragging {
+        opacity: 0.5;
+    }
+
+    .drop-container.drag-over {
+        background: #e3f2fd;
+        border-color: #2196f3;
+    }
+
+    .drop-container.correct {
+        background: #e8f5e9;
+        border-color: #4caf50;
+    }
+
+    .drop-container.incorrect {
+        background: #ffebee;
+        border-color: #f44336;
+    }
+
+    .feedback-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .feedback-icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+    }
+
+    .feedback-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .fade-out {
+        animation: fadeOut 0.5s ease-in-out forwards;
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .attempts-info {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .attempts-info h5 {
+        color: #dc3545;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<script>
+const shapes = [
+    { id: 'circle', icon: 'fa-circle', color: '#e74c3c' },
+    { id: 'square', icon: 'fa-square', color: '#3498db' },
+    { id: 'triangle', icon: 'fa-play fa-rotate-90', color: '#2ecc71' },
+    { id: 'star', icon: 'fa-star', color: '#f1c40f' },
+    { id: 'heart', icon: 'fa-heart', color: '#e84393' }
+];
+
+let wrongAttempts = 0;
+let matchedShapes = 0;
+let totalShapes = shapes.length;
+let previousAttempts = [];
+
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function createShapes() {
+    const shapesContainer = document.getElementById('shapesContainer');
+    const shuffledShapes = shuffleArray(shapes);
+    
+    shuffledShapes.forEach(shape => {
+        const shapeElement = document.createElement('div');
+        shapeElement.className = 'shape';
+        shapeElement.draggable = true;
+        shapeElement.innerHTML = `<i class="fas ${shape.icon}" style="color: ${shape.color}; font-size: 3rem;"></i>`;
+        shapeElement.dataset.shapeId = shape.id;
+        
+        shapeElement.addEventListener('dragstart', handleDragStart);
+        shapesContainer.appendChild(shapeElement);
+    });
+}
+
+function createDropContainers() {
+    const dropContainers = document.getElementById('dropContainers');
+    const shuffledShapes = shuffleArray(shapes);
+    
+    shuffledShapes.forEach(shape => {
+        const container = document.createElement('div');
+        container.className = 'drop-container';
+        container.dataset.shapeId = shape.id;
+        container.innerHTML = `<i class="fas ${shape.icon}" style="color: #ccc; font-size: 3rem;"></i>`;
+        
+        container.addEventListener('dragover', handleDragOver);
+        container.addEventListener('dragleave', handleDragLeave);
+        container.addEventListener('drop', handleDrop);
+        
+        dropContainers.appendChild(container);
+    });
+}
+
+function updateProgress() {
+    const progress = (matchedShapes / totalShapes) * 100;
+    const progressBar = document.querySelector('.progress-bar');
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute('aria-valuenow', progress);
+}
+
+function handleDragStart(e) {
+    e.target.classList.add('dragging');
+    e.dataTransfer.setData('text/plain', e.target.dataset.shapeId);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const container = e.currentTarget;
+    container.classList.remove('drag-over');
+    
+    const shapeId = e.dataTransfer.getData('text/plain');
+    const draggedElement = document.querySelector(`.shape[data-shape-id="${shapeId}"]`);
+    
+    if (container.dataset.shapeId === shapeId) {
+        // Correct match
+        container.classList.add('correct');
+        const shapeColor = draggedElement.querySelector('i').style.color;
+        container.style.backgroundColor = shapeColor;
+        container.style.borderColor = shapeColor;
+        container.querySelector('i').style.color = '#ffffff';
+        showFeedback(true);
+        draggedElement.style.display = 'none';
+        
+        matchedShapes++;
+        updateProgress();
+        
+        // Check if all shapes are matched
+        if (matchedShapes === totalShapes) {
+            setTimeout(showResults, 1000);
+        }
+    } else {
+        // Incorrect match
+        container.classList.add('incorrect');
+        showFeedback(false);
+        wrongAttempts++;
+        
+        // Remove incorrect class after animation
+        setTimeout(() => {
+            container.classList.remove('incorrect');
+        }, 1000);
+    }
+}
+
+function showFeedback(isCorrect) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'feedback-container';
+    
+    const icon = isCorrect ? '🎉' : '❌';
+    const text = isCorrect ? 'Perfect Match!' : 'Try Again!';
+    const textColor = isCorrect ? '#28a745' : '#dc3545';
+    
+    feedbackContainer.innerHTML = `
+        <div class="feedback-icon">${icon}</div>
+        <div class="feedback-text" style="color: ${textColor}">${text}</div>
+    `;
+    
+    document.body.appendChild(feedbackContainer);
+    
+    setTimeout(() => {
+        feedbackContainer.classList.add('fade-out');
+        setTimeout(() => {
+            document.body.removeChild(feedbackContainer);
+        }, 500);
+    }, 1500);
+}
+
+function showResults() {
+    const assessmentContent = document.getElementById('assessmentContent');
+    const resultsDiv = document.getElementById('results');
+    
+    // Hide assessment content and show results
+    assessmentContent.style.display = 'none';
+    resultsDiv.style.display = 'block';
+    
+    // Save attempts to the database
+    fetch('/api/save-assessment2-attempts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            wrong_attempts: wrongAttempts,
+            total_shapes: totalShapes,
+            completion_time: new Date().toISOString()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error saving attempts:', data.error);
+        }
+        
+        // Store attempts in previous attempts array
+        previousAttempts.push(wrongAttempts);
+        
+        // Update results display
+        let resultContent = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="attempts-info mb-4">
+                    <h5>Wrong Attempts: ${wrongAttempts}</h5>
+                    <p class="text-muted">
+                        ${wrongAttempts <= 1 
+                            ? 'Excellent work! Your shape matching skills are great!' 
+                            : 'Keep practicing to improve your accuracy.'}
+                    </p>
+                </div>`;
+        
+        // Add attempts history if there are previous attempts
+        if (previousAttempts.length > 1) {
+            resultContent += generateAttemptsHistory();
+        }
+        
+        // Show next steps
+        resultContent += `
+            <div class="mt-4">
+                ${wrongAttempts <= 1 
+                    ? `<p class="text-success">You're ready for the next assessment!</p>
+                       <a href="/assessment3" class="btn btn-primary btn-lg">
+                           <i class="fas fa-arrow-right"></i> Next Assessment
+                       </a>`
+                    : `<p>Would you like to try again to improve your score?</p>
+                       <button onclick="restartAssessment()" class="btn btn-primary btn-lg me-2">
+                           <i class="fas fa-redo"></i> Try Again
+                       </button>
+                       <a href="/assessment3" class="btn btn-outline-primary btn-lg">
+                           <i class="fas fa-arrow-right"></i> Next Assessment
+                       </a>`
+                }
+            </div>
+        </div>`;
+        
+        resultsDiv.innerHTML = resultContent;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resultsDiv.innerHTML = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="attempts-info mb-4">
+                    <h5>Wrong Attempts: ${wrongAttempts}</h5>
+                    <p class="text-muted">
+                        ${wrongAttempts <= 1 
+                            ? 'Excellent work! Your shape matching skills are great!' 
+                            : 'Keep practicing to improve your accuracy.'}
+                    </p>
+                </div>
+                <div class="alert alert-warning">
+                    There was an error saving your attempts. Please try again later.
+                </div>
+                <div class="mt-4">
+                    <a href="/assessment3" class="btn btn-primary btn-lg">
+                        <i class="fas fa-arrow-right"></i> Next Assessment
+                    </a>
+                </div>
+            </div>`;
+    });
+}
+
+function generateAttemptsHistory() {
+    let history = '<div class="attempts-history mt-4"><h5>Your Progress</h5>';
+    previousAttempts.forEach((attempts, index) => {
+        const improvement = index > 0 ? previousAttempts[index - 1] - attempts : 0;
+        const improvementClass = improvement > 0 ? 'text-success' : improvement < 0 ? 'text-danger' : '';
+        const improvementIcon = improvement > 0 ? '↑' : improvement < 0 ? '↓' : '→';
+        
+        history += `
+            <div class="attempt-item">
+                <span>Attempt ${index + 1}: ${attempts} wrong tries</span>
+                ${index > 0 ? `<span class="${improvementClass}">
+                    ${improvementIcon} ${Math.abs(improvement)} improvement
+                </span>` : ''}
+            </div>`;
+    });
+    history += '</div>';
+    return history;
+}
+
+function restartAssessment() {
+    // Reset variables
+    wrongAttempts = 0;
+    matchedShapes = 0;
+    
+    // Clear containers
+    document.getElementById('shapesContainer').innerHTML = '';
+    document.getElementById('dropContainers').innerHTML = '';
+    document.getElementById('results').style.display = 'none';
+    
+    // Show assessment content and start new round
+    document.getElementById('assessmentContent').style.display = 'block';
+    createShapes();
+    createDropContainers();
+}
+
+function startAssessment() {
+    const startButton = document.getElementById('startAssessment');
+    const assessmentContent = document.getElementById('assessmentContent');
+    
+    startButton.style.display = 'none';
+    assessmentContent.style.display = 'block';
+    
+    // Reset variables
+    wrongAttempts = 0;
+    matchedShapes = 0;
+    
+    // Create shapes and drop containers
+    createShapes();
+    createDropContainers();
+    
+    // Add progress indicator
+    const progressDiv = document.createElement('div');
+    progressDiv.className = 'progress mt-3';
+    progressDiv.innerHTML = `
+        <div class="progress-bar" role="progressbar" style="width: 0%" 
+             aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    `;
+    document.querySelector('.question-container').appendChild(progressDiv);
+}
+
+// Initialize assessment
+document.getElementById('startAssessment').addEventListener('click', startAssessment);
+
+// Add CSS for attempts history
+const style = document.createElement('style');
+style.textContent = `
+    .attempts-history {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .attempt-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .attempt-item:last-child {
+        border-bottom: none;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %} 

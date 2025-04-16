@@ -1,0 +1,587 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center mb-4">Your Learning Progress</h2>
+
+    <!-- Assessment Progress Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Circle Counting</h5>
+                    <div class="progress-circle mb-3" data-progress="{{ assessment1_latest_score }}">
+                        <span class="progress-value">{{ assessment1_latest_score|round|int }}%</span>
+                    </div>
+                    <p class="card-text">
+                        Latest Score: {{ assessment1_latest_score|round|int }}%<br>
+                        Attempts: {{ assessment1_attempts }}
+                    </p>
+                    <div class="chart-container" style="height: 180px; margin: 20px 0;">
+                        <canvas id="assessment1Chart"></canvas>
+                    </div>
+                    <a href="{{ url_for('assessment') }}" class="btn btn-primary">Practice Again</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Shape Matching</h5>
+                    <div class="progress-circle mb-3" data-progress="{{ assessment2_latest_score }}">
+                        <span class="progress-value">{{ assessment2_latest_score|round|int }}%</span>
+                    </div>
+                    <p class="card-text">
+                        Latest Score: {{ assessment2_latest_score|round|int }}%<br>
+                        Attempts: {{ assessment2_attempts }}
+                    </p>
+                    <div class="chart-container" style="height: 180px; margin: 20px 0;">
+                        <canvas id="assessment2Chart"></canvas>
+                    </div>
+                    <a href="{{ url_for('assessment2') }}" class="btn btn-primary">Practice Again</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Letter Recognition</h5>
+                    <div class="progress-circle mb-3" data-progress="{{ assessment3_latest_score }}">
+                        <span class="progress-value">{{ assessment3_latest_score|round|int }}%</span>
+                    </div>
+                    <p class="card-text">
+                        Latest Score: {{ assessment3_latest_score|round|int }}%<br>
+                        Attempts: {{ assessment3_attempts }}
+                    </p>
+                    <div class="chart-container" style="height: 180px; margin: 20px 0;">
+                        <canvas id="assessment3Chart"></canvas>
+                    </div>
+                    <a href="{{ url_for('assessment3') }}" class="btn btn-primary">Practice Again</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Word Identification</h5>
+                    <div class="progress-circle mb-3" data-progress="{{ assessment4_latest_score }}">
+                        <span class="progress-value">{{ assessment4_latest_score|round|int }}%</span>
+                    </div>
+                    <p class="card-text">
+                        Latest Score: {{ assessment4_latest_score|round|int }}%<br>
+                        Attempts: {{ assessment4_attempts }}
+                    </p>
+                    <div class="chart-container" style="height: 180px; margin: 20px 0;">
+                        <canvas id="assessment4Chart"></canvas>
+                    </div>
+                    <a href="{{ url_for('assessment4') }}" class="btn btn-primary">Practice Again</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Recent Activity</h5>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% for activity in recent_activities %}
+                <div class="timeline-item">
+                    <div class="timeline-date">{{ activity.date }}</div>
+                    <div class="timeline-content">
+                        <h6>{{ activity.title }}</h6>
+                        <p>{{ activity.description }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Assessment History Section -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Assessment History</h5>
+        </div>
+        <div class="card-body">
+            <ul class="nav nav-tabs" id="historyTabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="assessment1-tab" data-bs-toggle="tab" href="#assessment1-history-tab" role="tab">Assessment 1</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="assessment2-tab" data-bs-toggle="tab" href="#assessment2-history-tab" role="tab">Assessment 2</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="assessment3-tab" data-bs-toggle="tab" href="#assessment3-history-tab" role="tab">Assessment 3</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="assessment4-tab" data-bs-toggle="tab" href="#assessment4-history-tab" role="tab">Assessment 4</a>
+                </li>
+            </ul>
+
+            <div class="tab-content p-3 border border-top-0 rounded-bottom">
+                <div class="tab-pane fade show active" id="assessment1-history-tab" role="tabpanel">
+                    <h5>Assessment 1 History</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Score</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assessment1-history">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="assessment2-history-tab" role="tabpanel">
+                    <h5>Assessment 2 History</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Incorrect Matches</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assessment2-history">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="assessment3-history-tab" role="tabpanel">
+                    <h5>Assessment 3 History</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Incorrect Letters</th>
+                                    <th>Letters Missed</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assessment3-history">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="tab-pane fade" id="assessment4-history-tab" role="tabpanel">
+                    <h5>Assessment 4 History</h5>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date</th>
+                                    <th>Score</th>
+                                    <th>Incorrect Words</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assessment4-history">
+                                <!-- Data will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.progress-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    position: relative;
+    margin: 0 auto;
+}
+
+.progress-circle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(#4CAF50 var(--progress), #f0f0f0 0deg);
+}
+
+.progress-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 30px;
+    margin-bottom: 20px;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #4CAF50;
+}
+
+.timeline-item::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 12px;
+    width: 2px;
+    height: calc(100% + 8px);
+    background: #e0e0e0;
+}
+
+.timeline-item:last-child::after {
+    display: none;
+}
+
+.timeline-date {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.timeline-content h6 {
+    margin: 0;
+    color: #333;
+}
+
+.timeline-content p {
+    margin: 5px 0 0;
+    color: #666;
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    margin: 0 auto;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize progress circles
+    document.querySelectorAll('.progress-circle').forEach(circle => {
+        const progress = circle.getAttribute('data-progress');
+        circle.style.setProperty('--progress', `${progress}%`);
+    });
+
+    // Initialize charts
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 110,
+                ticks: {
+                    stepSize: 20,
+                    callback: function(value) {
+                        return value > 100 ? '' : value + '%';
+                    }
+                },
+                grid: {
+                    drawBorder: true,
+                    color: function(context) {
+                        if (context.tick.value > 100) {
+                            return 'rgba(0,0,0,0)';
+                        }
+                        return 'rgba(0,0,0,0.1)';
+                    }
+                }
+            },
+            x: {
+                display: false
+            }
+        },
+        elements: {
+            point: {
+                radius: 6,
+                backgroundColor: function(context) {
+                    return context.dataset.borderColor;
+                },
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverRadius: 8
+            },
+            line: {
+                tension: 0.4,
+                borderWidth: 3
+            }
+        },
+        layout: {
+            padding: {
+                top: 10,
+                bottom: 10
+            }
+        }
+    };
+
+    // Assessment 1 Chart
+    const assessment1Ctx = document.getElementById('assessment1Chart').getContext('2d');
+    new Chart(assessment1Ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: {{ assessment1_attempts }}}, (_, i) => i + 1).reverse(),
+            datasets: [{
+                data: {{ assessment1_history | tojson }}.reverse(),
+                borderColor: '#4CAF50',
+                backgroundColor: '#4CAF50',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: chartOptions
+    });
+
+    // Assessment 2 Chart
+    const assessment2Ctx = document.getElementById('assessment2Chart').getContext('2d');
+    new Chart(assessment2Ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: {{ assessment2_attempts }}}, (_, i) => i + 1).reverse(),
+            datasets: [{
+                data: {{ assessment2_history | tojson }}.reverse(),
+                borderColor: '#2196F3',
+                backgroundColor: '#2196F3',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: chartOptions
+    });
+
+    // Assessment 3 Chart
+    const assessment3Ctx = document.getElementById('assessment3Chart').getContext('2d');
+    new Chart(assessment3Ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: {{ assessment3_attempts }}}, (_, i) => i + 1).reverse(),
+            datasets: [{
+                data: {{ assessment3_history | tojson }}.reverse(),
+                borderColor: '#FFC107',
+                backgroundColor: '#FFC107',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: chartOptions
+    });
+    
+    // Assessment 4 Chart
+    const assessment4Ctx = document.getElementById('assessment4Chart').getContext('2d');
+    new Chart(assessment4Ctx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: {{ assessment4_attempts }}}, (_, i) => i + 1).reverse(),
+            datasets: [{
+                data: {{ assessment4_history | tojson }}.reverse(),
+                borderColor: '#9C27B0',
+                backgroundColor: '#9C27B0',
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: chartOptions
+    });
+    
+    // Load history tables
+    loadProgressData();
+});
+
+function loadProgressData() {
+    fetch('/api/get-assessment-progress')
+        .then(response => response.json())
+        .then(data => {
+            // Process Assessment 1 data
+            if (data.assessment1 && data.assessment1.length > 0) {
+                const progressData = data.assessment1
+                    .sort((a, b) => new Date(b.timestamp.$date) - new Date(a.timestamp.$date))
+                    .slice(0, 5);
+                displayAssessment1Progress(progressData);
+            } else {
+                displayNoData('assessment1-history');
+            }
+            
+            // Process Assessment 2 data
+            if (data.assessment2 && data.assessment2.length > 0) {
+                const progressData = data.assessment2
+                    .sort((a, b) => new Date(b.timestamp.$date) - new Date(a.timestamp.$date))
+                    .slice(0, 5);
+                displayAssessment2Progress(progressData);
+            } else {
+                displayNoData('assessment2-history');
+            }
+            
+            // Process Assessment 3 data
+            if (data.assessment3 && data.assessment3.length > 0) {
+                const progressData = data.assessment3
+                    .sort((a, b) => new Date(b.timestamp.$date) - new Date(a.timestamp.$date))
+                    .slice(0, 5);
+                displayAssessment3Progress(progressData);
+            } else {
+                displayNoData('assessment3-history');
+            }
+            
+            // Process Assessment 4 data
+            if (data.assessment4 && data.assessment4.length > 0) {
+                const progressData = data.assessment4
+                    .sort((a, b) => new Date(b.timestamp.$date) - new Date(a.timestamp.$date))
+                    .slice(0, 5);
+                displayAssessment4Progress(progressData);
+            } else {
+                displayNoData('assessment4-history');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading progress data:', error);
+        });
+}
+
+function displayNoData(tableId) {
+    const tableBody = document.getElementById(tableId);
+    if (tableBody) {
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">No attempts yet</td>
+            </tr>
+        `;
+    }
+}
+
+function formatDate(date) {
+    return new Date(date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function displayAssessment1Progress(progressData) {
+    const tableBody = document.getElementById('assessment1-history');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        
+        progressData.forEach((score, index) => {
+            const row = document.createElement('tr');
+            const percentage = Math.round((score.score / score.total) * 100);
+            
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatDate(score.timestamp.$date)}</td>
+                <td>${percentage}% (${score.score}/${score.total})</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+}
+
+function displayAssessment2Progress(progressData) {
+    const tableBody = document.getElementById('assessment2-history');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        
+        progressData.forEach((attempt, index) => {
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatDate(attempt.timestamp.$date)}</td>
+                <td>${attempt.wrong_attempts}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+}
+
+function displayAssessment3Progress(progressData) {
+    const tableBody = document.getElementById('assessment3-history');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        
+        progressData.forEach((attempt, index) => {
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatDate(attempt.timestamp.$date)}</td>
+                <td>${attempt.wrong_attempts}</td>
+                <td>${attempt.incorrect_letters ? attempt.incorrect_letters.join(', ') : 'None'}</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+}
+
+function displayAssessment4Progress(progressData) {
+    const tableBody = document.getElementById('assessment4-history');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        
+        progressData.forEach((attempt, index) => {
+            const row = document.createElement('tr');
+            const score = 5 - attempt.wrong_attempts;
+            const percentage = Math.round((score / 5) * 100);
+            
+            row.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${formatDate(attempt.timestamp.$date)}</td>
+                <td>${score}/5 (${percentage}%)</td>
+                <td>${attempt.wrong_attempts} words</td>
+            `;
+            
+            tableBody.appendChild(row);
+        });
+    }
+}
+</script>
+{% endblock %} 

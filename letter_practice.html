@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Letter Practice</h5>
+            <div>
+                <a href="/dashboard" class="btn btn-light btn-sm">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <h4>Practice Your Letters</h4>
+                <p class="lead" id="instruction-text">Listen to each letter and practice its pronunciation.</p>
+            </div>
+
+            <div id="letterDisplay" class="text-center mb-4">
+                <div class="current-letter display-1 mb-3">-</div>
+                <div class="btn-group" role="group" id="letterControls">
+                    <button class="btn btn-primary btn-lg me-2" id="prevLetter" disabled>
+                        <i class="fas fa-arrow-left"></i> Previous
+                    </button>
+                    <button class="btn btn-success btn-lg me-2" id="speakLetter">
+                        <i class="fas fa-volume-up"></i> Hear Again
+                    </button>
+                    <button class="btn btn-primary btn-lg" id="nextLetter" disabled>
+                        Next <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <a href="/assessment3" class="btn btn-warning btn-lg">
+                        <i class="fas fa-redo"></i> Try Assessment Again
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.current-letter {
+    font-size: 12rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    margin: 2rem 0;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 768px) {
+    .current-letter {
+        font-size: 8rem;
+    }
+}
+</style>
+
+<script>
+let incorrectLetters = [];
+let currentIndex = -1;
+let speakTimeout = null;
+
+// Phonetic guide for letter pronunciation
+const phoneticGuide = {
+    'A': 'a',
+    'B': 'b',
+    'C': 'c',
+    'D': 'd',
+    'E': 'e',
+    'F': 'f',
+    'G': 'g',
+    'H': 'h',
+    'I': 'i',
+    'J': 'j',
+    'K': 'k',
+    'L': 'l',
+    'M': 'm',
+    'N': 'n',
+    'O': 'o',
+    'P': 'p',
+    'Q': 'q',
+    'R': 'r',
+    'S': 's',
+    'T': 't',
+    'U': 'u',
+    'V': 'v',
+    'W': 'w',
+    'X': 'x',
+    'Y': 'y',
+    'Z': 'zed'
+};
+
+// Fetch incorrect letters from the latest assessment
+async function fetchIncorrectLetters() {
+    try {
+        const response = await fetch('/api/get-incorrect-letters');
+        const data = await response.json();
+        
+        if (data.success) {
+            incorrectLetters = data.letters;
+            if (incorrectLetters.length > 0) {
+                showLetter(0);
+                updateControls();
+            } else {
+                // If no incorrect letters, show next assessment section
+                showNextAssessment();
+            }
+        } else {
+            console.error('Error fetching incorrect letters:', data.error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Show the selected letter
+function showLetter(index) {
+    currentIndex = index;
+    const letter = incorrectLetters[index];
+    
+    // Update display with animation
+    const letterElement = document.querySelector('.current-letter');
+    letterElement.style.opacity = '0';
+    letterElement.style.transform = 'scale(0.9)';
+    
+    setTimeout(() => {
+        letterElement.textContent = letter;
+        letterElement.style.opacity = '1';
+        letterElement.style.transform = 'scale(1)';
+    }, 100);
+    
+    // Speak the letter after a short delay
+    if (speakTimeout) {
+        clearTimeout(speakTimeout);
+    }
+    speakTimeout = setTimeout(() => {
+        speakLetter(letter);
+    }, 300);
+    
+    // Update controls
+    updateControls();
+}
+
+// Speak the current letter
+function speakLetter(letter) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    // Create utterance for the letter name
+    const utterance = new SpeechSynthesisUtterance(letter);
+    utterance.rate = 0.8;  // Slightly slower rate
+    utterance.pitch = 1.1; // Slightly higher pitch for clarity
+    utterance.volume = 1;  // Maximum volume
+    utterance.lang = 'en-US'; // Force English pronunciation
+    
+    // Wait for voices to be loaded
+    window.speechSynthesis.onvoiceschanged = () => {
+        const voices = window.speechSynthesis.getVoices();
+        // Try to find Microsoft Zira (female voice)
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        // Fallback to any English female voice if Zira not found
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        // Use the selected voice
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        
+        window.speechSynthesis.speak(utterance);
+    };
+    
+    // Initial speak attempt (in case voices are already loaded)
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+// Update navigation controls
+function updateControls() {
+    document.getElementById('prevLetter').disabled = currentIndex <= 0;
+    document.getElementById('nextLetter').disabled = currentIndex >= incorrectLetters.length - 1;
+}
+
+// Show next assessment section
+function showNextAssessment() {
+    document.getElementById('letterDisplay').style.display = 'none';
+    document.getElementById('nextAssessmentSection').style.display = 'block';
+}
+
+// Event listeners
+document.getElementById('prevLetter').addEventListener('click', () => {
+    if (currentIndex > 0) {
+        showLetter(currentIndex - 1);
+    }
+});
+
+document.getElementById('nextLetter').addEventListener('click', () => {
+    if (currentIndex < incorrectLetters.length - 1) {
+        showLetter(currentIndex + 1);
+    } else {
+        // Show next assessment section only when clicking next on the last letter
+        showNextAssessment();
+    }
+});
+
+document.getElementById('speakLetter').addEventListener('click', () => {
+    if (currentIndex >= 0) {
+        showLetter(currentIndex);
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', fetchIncorrectLetters);
+</script>
+{% endblock %} 

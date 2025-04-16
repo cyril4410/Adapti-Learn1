@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adapti-Learn</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #f5f6fa;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --text-color: #2c3e50;
+            --border-color: #dcdde1;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            color: var(--text-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .emotion-banner {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .emotion-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .emotion-label {
+            font-weight: 600;
+            color: var(--text-color);
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .emotion-value {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.4rem;
+            min-width: 120px;
+            text-align: center;
+            padding: 8px 16px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .emotion-value:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .emotion-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.95rem;
+            padding: 6px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .status-active {
+            background-color: rgba(46, 204, 113, 0.1);
+            color: var(--success-color);
+        }
+
+        .status-inactive {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--danger-color);
+        }
+
+        .status-icon {
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #357abd 100%) !important;
+            padding: 0.8rem 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.4rem;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-link {
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+        }
+
+        .nav-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            padding: 2rem 1rem;
+        }
+
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #357abd 100%);
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            padding: 1rem 1.5rem;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background: #357abd;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 576px) {
+            .emotion-display {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .emotion-value {
+                min-width: 100px;
+                font-size: 1.2rem;
+            }
+
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+        }
+
+        /* Stress Alert Styles */
+        .stress-alert {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #e74c3c;
+            border-left: 4px solid #c0392b;
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1100;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .stress-alert i {
+            color: #ffffff;
+            margin-right: 8px;
+        }
+
+        .stress-alert span {
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        /* Stress Intervention Overlay */
+        .stress-intervention-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 9999;
+            color: white;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .intervention-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+
+        .breathing-animation {
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            animation: breathe 4s infinite ease-in-out;
+        }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .intervention-message {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .music-controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .music-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .continue-message {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 30px;
+        }
+
+        /* Audio player styling */
+        .audio-player {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .audio-player audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Video container styling */
+        .video-container {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+        }
+
+        .video-container video {
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Remove old audio player styles */
+        .music-controls,
+        .music-title,
+        .audio-player {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Stress Alert -->
+    <div id="stressAlert" class="stress-alert">
+        <i class="fas fa-exclamation-circle"></i>
+        <span>You appear stressed. Please take a break!</span>
+    </div>
+
+    <!-- Emotion Banner -->
+    {% if not request.endpoint in ['index', 'login', 'register'] %}
+    <div class="emotion-banner">
+        <div class="emotion-display">
+            <span class="emotion-label">Current Emotion:</span>
+            <span id="currentEmotion" class="emotion-value">-</span>
+            <span class="emotion-status">
+                <i class="fas fa-circle status-icon"></i>
+                <span id="emotionStatus">Inactive</span>
+            </span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Add the stress intervention overlay -->
+    <div id="stressInterventionOverlay" class="stress-intervention-overlay" role="dialog" aria-modal="true" aria-labelledby="interventionTitle">
+        <div class="intervention-content">
+            <div class="breathing-animation" role="presentation"></div>
+            <h2 id="interventionTitle" class="intervention-message">Let's Take a Moment to Relax</h2>
+            <div class="video-container">
+                <video id="relaxationVideo" controls>
+                    <source src="{{ url_for('static', filename='videos/relaxation.mp4') }}" type="video/mp4">
+                    Your browser does not support the video element.
+                </video>
+            </div>
+            <p class="continue-message">Take deep breaths. You can continue when you're feeling better.</p>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-graduation-cap me-2"></i>Adapti-Learn
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard') }}">
+                            <i class="fas fa-home me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assessment') }}">
+                            <i class="fas fa-circle me-1"></i>Assessment 1
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assessment2') }}">
+                            <i class="fas fa-shapes me-1"></i>Assessment 2
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assessment3') }}">
+                            <i class="fas fa-font me-1"></i>Assessment 3
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('assessment4') }}">
+                            <i class="fas fa-microphone me-1"></i>Assessment 4
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('progress') }}">
+                            <i class="fas fa-chart-line me-1"></i>Progress
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script>
+        // Emotion detection status and updates
+        let emotionUpdateInterval;
+        let isDetectionActive = false;
+        let emotionCount = {};
+
+        // Stress and calm detection variables
+        let stressCount = 0;
+        let calmCount = 0;
+        const STRESS_THRESHOLD = 3; // Trigger intervention after 3 stress detections
+        const CALM_THRESHOLD = 3;   // Remove intervention after 3 calm detections
+        let isStressInterventionActive = false;
+        const relaxationVideo = document.getElementById('relaxationVideo');
+        const stressInterventionOverlay = document.getElementById('stressInterventionOverlay');
+
+        // Add a variable to track the last video position
+        let lastVideoPosition = 0;
+
+        function getMostFrequentEmotion() {
+            let maxCount = 0;
+            let mostFrequent = null;
+            for (const [emotion, count] of Object.entries(emotionCount)) {
+                if (count > maxCount) {
+                    maxCount = count;
+                    mostFrequent = emotion;
+                }
+            }
+            console.log('Most frequent emotion:', mostFrequent); // Debug log
+            return mostFrequent;
+        }
+
+        // Function to check for stress and calm states
+        function checkStressLevel(emotion) {
+            // Convert emotion to lowercase for case-insensitive comparison
+            const lowerEmotion = emotion.toLowerCase();
+            
+            // Check for any negative emotions
+            if (lowerEmotion === 'fear' || 
+                lowerEmotion === 'sad' || 
+                lowerEmotion === 'angry' || 
+                lowerEmotion === 'anger' || 
+                lowerEmotion === 'disgust') {
+                
+                stressCount++;
+                calmCount = 0; // Reset calm count when stress detected
+                console.log('Negative emotion detected:', emotion, 'Stress Count:', stressCount, 'Calm Count:', calmCount);
+                
+                if (stressCount >= STRESS_THRESHOLD) {
+                    console.log('Stress threshold reached. Showing intervention.');
+                    showStressIntervention();
+                }
+            } else if (lowerEmotion === 'happy' || lowerEmotion === 'neutral') {
+                // Increment calm count only if intervention is active
+                if (isStressInterventionActive) {
+                    calmCount++;
+                    console.log('Positive/Neutral emotion detected:', emotion, 'Calm Count:', calmCount, 'Stress Count:', stressCount);
+                    
+                    if (calmCount >= CALM_THRESHOLD) {
+                        console.log('Calm threshold reached. Hiding intervention.');
+                        hideStressIntervention();
+                    }
+                }
+                stressCount = 0; // Reset stress count on positive emotions
+            } else {
+                // For any other emotions, maintain current counts
+                console.log('Other emotion detected:', emotion, 'Maintaining current counts');
+            }
+        }
+
+        // Function to show stress intervention
+        function showStressIntervention() {
+            if (!isStressInterventionActive) {
+                console.log('Activating stress intervention');
+                isStressInterventionActive = true;
+                stressInterventionOverlay.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                
+                // Reset calm count when showing intervention
+                calmCount = 0;
+                
+                // Start playing relaxation video from last position
+                try {
+                    // If the video reached the end before, start from beginning
+                    if (lastVideoPosition >= relaxationVideo.duration) {
+                        lastVideoPosition = 0;
+                    }
+                    
+                    // Set the video to the last position
+                    relaxationVideo.currentTime = lastVideoPosition;
+                    
+                    const playPromise = relaxationVideo.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.log('Video playback failed:', error);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error playing video:', error);
+                }
+            }
+        }
+
+        // Function to hide stress intervention
+        function hideStressIntervention() {
+            if (isStressInterventionActive) {
+                console.log('Deactivating stress intervention after', calmCount, 'calm detections');
+                
+                // Store the current video position before pausing
+                lastVideoPosition = relaxationVideo.currentTime;
+                
+                // Pause the video
+                try {
+                    relaxationVideo.pause();
+                } catch (error) {
+                    console.error('Error stopping video:', error);
+                }
+                
+                // Hide the overlay
+                isStressInterventionActive = false;
+                stressInterventionOverlay.style.display = 'none';
+                document.body.style.overflow = '';
+                
+                // Reset stress and calm counters
+                stressCount = 0;
+                calmCount = 0;
+            }
+        }
+
+        // Add event listener for video ending
+        relaxationVideo.addEventListener('ended', function() {
+            // If the video ends while intervention is active, start it over
+            if (isStressInterventionActive) {
+                lastVideoPosition = 0;
+                relaxationVideo.currentTime = 0;
+                relaxationVideo.play().catch(error => {
+                    console.error('Error replaying video:', error);
+                });
+            }
+        });
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            if (relaxationVideo) {
+                // Store the current position before unloading
+                lastVideoPosition = relaxationVideo.currentTime;
+                relaxationVideo.pause();
+            }
+            hideStressIntervention();
+            stressCount = 0;
+            calmCount = 0;
+        });
+
+        // Add event listener for page visibility change
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Page is hidden (user switched tabs, minimized window, etc.)
+                if (isStressInterventionActive) {
+                    lastVideoPosition = relaxationVideo.currentTime;
+                    relaxationVideo.pause();
+                }
+            } else {
+                // Page is visible again
+                if (isStressInterventionActive) {
+                    relaxationVideo.currentTime = lastVideoPosition;
+                    relaxationVideo.play().catch(error => {
+                        console.error('Error resuming video:', error);
+                    });
+                }
+            }
+        });
+
+        // Add session storage to persist video position across page refreshes
+        window.addEventListener('load', function() {
+            // Try to restore last video position from session storage
+            const storedPosition = sessionStorage.getItem('relaxationVideoPosition');
+            if (storedPosition !== null) {
+                lastVideoPosition = parseFloat(storedPosition);
+            }
+        });
+
+        // Store video position in session storage when it changes
+        relaxationVideo.addEventListener('timeupdate', function() {
+            if (isStressInterventionActive) {
+                sessionStorage.setItem('relaxationVideoPosition', relaxationVideo.currentTime.toString());
+            }
+        });
+
+        // Function to update current emotion and check stress
+        function updateCurrentEmotion() {
+            if (!isDetectionActive) {
+                document.getElementById('currentEmotion').textContent = '-';
+                document.getElementById('emotionStatus').innerHTML = 'Inactive';
+                document.getElementById('emotionStatus').parentElement.className = 'emotion-status status-inactive';
+                return;
+            }
+
+            fetch('/api/get-current-emotion')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const currentEmotion = data.emotion;
+                        document.getElementById('currentEmotion').textContent = currentEmotion;
+                        document.getElementById('emotionStatus').innerHTML = 'Active';
+                        document.getElementById('emotionStatus').parentElement.className = 'emotion-status status-active';
+                        checkStressLevel(currentEmotion);
+                    } else {
+                        throw new Error(data.error || 'Failed to get emotion');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('currentEmotion').textContent = 'Error';
+                    document.getElementById('emotionStatus').innerHTML = 'Error';
+                    document.getElementById('emotionStatus').parentElement.className = 'emotion-status status-inactive';
+                });
+        }
+
+        // Initialize emotion detection
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check current status first
+            fetch('/api/emotion-detection-status')
+                .then(response => response.json())
+                .then(data => {
+                    isDetectionActive = data.is_active;
+                    if (isDetectionActive) {
+                        emotionUpdateInterval = setInterval(updateCurrentEmotion, 2000);
+                    } else {
+                        // Ensure UI shows inactive state
+                        document.getElementById('currentEmotion').textContent = '-';
+                        document.getElementById('emotionStatus').innerHTML = 'Inactive';
+                        document.getElementById('emotionStatus').parentElement.className = 'emotion-status status-inactive';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking emotion detection status:', error);
+                    isDetectionActive = false;
+                });
+        });
+
+        function startEmotionDetection() {
+            if (emotionUpdateInterval) {
+                clearInterval(emotionUpdateInterval);
+            }
+            isDetectionActive = true;
+            emotionUpdateInterval = setInterval(updateCurrentEmotion, 2000);
+            updateCurrentEmotion();
+        }
+
+        function stopEmotionDetection() {
+            isDetectionActive = false;
+            if (emotionUpdateInterval) {
+                clearInterval(emotionUpdateInterval);
+                emotionUpdateInterval = null;
+            }
+            updateCurrentEmotion();
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html> 

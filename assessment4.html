@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Assessment 4: Word Identification</h5>
+            <a href="/dashboard" class="btn btn-light btn-sm">
+                <i class="fas fa-home"></i> Dashboard
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <h4>Word Identification Assessment</h4>
+                <p class="lead">Question <span id="currentQuestionNumber">1</span> of 5: Speak the word shown on the screen.</p>
+            </div>
+
+            <div id="assessmentContent" class="text-center">
+                <div class="word-display mb-4">
+                    <h2 id="currentWord" class="display-4">Loading...</h2>
+                </div>
+
+                <div class="recording-controls mb-4">
+                    <button id="recordButton" class="btn btn-primary btn-lg">
+                        <i class="fas fa-microphone"></i> Start Recording
+                    </button>
+                </div>
+
+                <div id="recordingStatus" class="alert alert-info" style="display: none;">
+                    Recording... Speak clearly!
+                </div>
+
+                <div id="transcriptionResult" class="alert alert-secondary" style="display: none;">
+                    You said: <span id="transcribedText"></span>
+                </div>
+
+                <div id="resultMessage" class="alert" style="display: none;"></div>
+                
+                <div id="scoreDisplay" class="score-display my-4" style="display: none;">
+                    <h3>Your Score: <span id="finalScore">0</span>/5</h3>
+                </div>
+            </div>
+
+            <div id="resultContent" style="display: none;">
+                <!-- Results will be shown here -->
+            </div>
+
+            <div id="resultsSection" class="text-center mt-4" style="display: none;">
+                <!-- Results will be dynamically inserted here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.word-display {
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#currentWord {
+    font-size: 4rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.recording-controls {
+    margin: 2rem 0;
+}
+
+#recordButton {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+#recordButton.recording {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+#transcriptionResult {
+    font-size: 1.2rem;
+    margin: 1rem 0;
+}
+
+.score-display {
+    padding: 2rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+    #currentWord {
+        font-size: 3rem;
+    }
+    
+    #recordButton {
+        width: 100px;
+        height: 100px;
+        font-size: 1.2rem;
+    }
+}
+</style>
+
+<script>
+let currentQuestionIndex = 0;
+let isRecording = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let score = 0;
+let incorrectWords = [];
+let words = [
+    'apple', 'house', 'monkey', 'pencil', 'rainbow'
+];
+
+// Initialize the assessment
+function initializeAssessment() {
+    document.getElementById('currentQuestionNumber').textContent = currentQuestionIndex + 1;
+    showWord();
+    document.getElementById('recordButton').addEventListener('click', toggleRecording);
+}
+
+// Show the current word
+function showWord() {
+    document.getElementById('currentWord').textContent = words[currentQuestionIndex].toUpperCase();
+}
+
+// Toggle recording
+async function toggleRecording() {
+    if (!isRecording) {
+        startRecording();
+    } else {
+        stopRecording();
+    }
+}
+
+// Start recording
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = async () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            await processAudio(audioBlob);
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+        document.getElementById('recordButton').classList.add('recording');
+        document.getElementById('recordButton').innerHTML = '<i class="fas fa-stop"></i> Stop Recording';
+        document.getElementById('recordingStatus').style.display = 'block';
+        document.getElementById('transcriptionResult').style.display = 'none';
+        document.getElementById('resultMessage').style.display = 'none';
+    } catch (error) {
+        console.error('Error accessing microphone:', error);
+        alert('Error accessing microphone. Please ensure you have granted microphone permissions.');
+    }
+}
+
+// Stop recording
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        document.getElementById('recordButton').classList.remove('recording');
+        document.getElementById('recordButton').innerHTML = '<i class="fas fa-microphone"></i> Start Recording';
+        document.getElementById('recordingStatus').style.display = 'none';
+    }
+}
+
+// Process the recorded audio
+async function processAudio(audioBlob) {
+    try {
+        const formData = new FormData();
+        formData.append('audio', audioBlob);
+
+        const response = await fetch('/api/transcribe-audio', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            const transcribedText = data.text.toLowerCase().trim();
+            document.getElementById('transcribedText').textContent = transcribedText;
+            document.getElementById('transcriptionResult').style.display = 'block';
+            
+            // Check if the transcription matches the current word
+            const currentWord = words[currentQuestionIndex].toLowerCase();
+            const isCorrect = transcribedText.includes(currentWord);
+            
+            showResult(isCorrect);
+        } else {
+            console.error('Transcription error:', data.error);
+            alert('Error processing audio. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error processing audio. Please try again.');
+    }
+}
+
+// Show result
+function showResult(correct) {
+    const resultMessage = document.getElementById('resultMessage');
+    resultMessage.style.display = 'block';
+    
+    if (correct) {
+        resultMessage.className = 'alert alert-success';
+        resultMessage.innerHTML = '<i class="fas fa-check-circle"></i> Correct!';
+        score++;
+    } else {
+        resultMessage.className = 'alert alert-danger';
+        resultMessage.innerHTML = '<i class="fas fa-times-circle"></i> Wrong.';
+        incorrectWords.push(words[currentQuestionIndex]);
+    }
+
+    // Move to next question after a delay or show final score
+    setTimeout(() => {
+        if (currentQuestionIndex < words.length - 1) {
+            currentQuestionIndex++;
+            document.getElementById('currentQuestionNumber').textContent = currentQuestionIndex + 1;
+            showWord();
+            resultMessage.style.display = 'none';
+            document.getElementById('transcriptionResult').style.display = 'none';
+        } else {
+            completeAssessment();
+        }
+    }, 2000);
+}
+
+// Complete assessment
+function completeAssessment() {
+    // Display final score
+    document.getElementById('finalScore').textContent = score;
+    document.getElementById('scoreDisplay').style.display = 'block';
+    
+    // Hide question content
+    document.getElementById('currentWord').parentElement.style.display = 'none';
+    document.getElementById('recordButton').parentElement.style.display = 'none';
+    document.getElementById('resultMessage').style.display = 'none';
+    document.getElementById('transcriptionResult').style.display = 'none';
+    
+    // Show appropriate results section based on current score
+    const resultsSection = document.getElementById('resultsSection');
+    if (score === 5) {
+        resultsSection.innerHTML = `
+            <div class="alert alert-success">
+                <h4>Perfect Score!</h4>
+                <p>Congratulations! You've completed the word pronunciation assessment with full marks!</p>
+            </div>
+            <div class="mt-4">
+                <a href="/dashboard" class="btn btn-primary btn-lg">
+                    <i class="fas fa-home"></i> Return to Dashboard
+                </a>
+            </div>`;
+    } else {
+        resultsSection.innerHTML = `
+            <div class="alert alert-warning">
+                <h4>Keep practicing!</h4>
+                <p>You might want to practice the words you found challenging.</p>
+            </div>
+            <div class="mt-4">
+                ${incorrectWords.length > 0 ? `
+                    <a href="/word-practice" class="btn btn-success btn-lg me-2">
+                        <i class="fas fa-book"></i> Practice Words
+                    </a>
+                ` : ''}
+                <a href="/dashboard" class="btn btn-primary btn-lg me-2">
+                    <i class="fas fa-home"></i> Return to Dashboard
+                </a>
+                <a href="/assessment4" class="btn btn-warning btn-lg">
+                    <i class="fas fa-redo"></i> Try Again
+                </a>
+            </div>`;
+    }
+    
+    // Show results section
+    resultsSection.style.display = 'block';
+    
+    // Save assessment data with incorrect words
+    fetch('/api/save-assessment4-attempts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            wrong_attempts: 5 - score,
+            incorrect_words: incorrectWords
+        })
+    })
+    .catch(error => {
+        console.error('Error saving assessment data:', error);
+    });
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initializeAssessment();
+});
+</script>
+{% endblock %} 

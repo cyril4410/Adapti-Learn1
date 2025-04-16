@@ -1,0 +1,599 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">Letter Recognition Assessment</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Welcome to your Letter Recognition Assessment</h4>
+                    <p>Listen carefully to the letter being spoken and select the correct option.</p>
+                    
+                    <div class="alert alert-info">
+                        <h5>Listen and Match the Letter</h5>
+                    </div>
+
+                    <div class="text-center mt-4">
+                        <button id="startAssessment" class="btn btn-lg btn-success">
+                            <i class="fas fa-play"></i> Start Assessment
+                        </button>
+                    </div>
+
+                    <div id="assessmentContent" class="mt-4" style="display: none;">
+                        <div class="question-container text-center">
+                            <div class="mb-4">
+                                <div id="optionsContainer" class="options-container">
+                                    <!-- Options will be inserted here -->
+                                </div>
+                            </div>
+                            <div class="progress mt-3">
+                                <div class="progress-bar" role="progressbar" style="width: 0%" 
+                                     aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div id="feedback" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div id="results" class="mt-4" style="display: none;">
+                        <!-- Results will be shown here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .options-container {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .option-button {
+        padding: 20px;
+        font-size: 2rem;
+        font-weight: bold;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .option-button:hover {
+        background: #e3f2fd;
+        transform: translateY(-2px);
+    }
+
+    .option-button.correct {
+        background: #e8f5e9;
+        border-color: #4caf50;
+        color: #2e7d32;
+    }
+
+    .option-button.incorrect {
+        background: #ffebee;
+        border-color: #f44336;
+        color: #c62828;
+    }
+
+    .option-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    .feedback-container {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    .feedback-icon {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+    }
+
+    .feedback-text {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .fade-out {
+        animation: fadeOut 0.5s ease-in-out forwards;
+    }
+
+    @keyframes fadeOut {
+        from { opacity: 1; }
+        to { opacity: 0; }
+    }
+
+    .attempts-info {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 1rem 0;
+    }
+    
+    .attempts-info h5 {
+        color: #dc3545;
+        margin-bottom: 0.5rem;
+    }
+</style>
+
+<script>
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const phoneticGuide = {
+    'A': 'a',
+    'B': 'b',
+    'C': 'c',
+    'D': 'd',
+    'E': 'e',
+    'F': 'f',
+    'G': 'g',
+    'H': 'h',
+    'I': 'i',
+    'J': 'j',
+    'K': 'k',
+    'L': 'l',
+    'M': 'm',
+    'N': 'n',
+    'O': 'o',
+    'P': 'p',
+    'Q': 'q',
+    'R': 'r',
+    'S': 's',
+    'T': 't',
+    'U': 'u',
+    'V': 'v',
+    'W': 'w',
+    'X': 'x',
+    'Y': 'y',
+    'Z': 'zed'
+};
+
+let currentQuestion = 1;
+let score = 0;
+let wrongAttempts = 0;
+let totalQuestions = 10;
+let previousAttempts = [];
+let incorrectLetters = [];
+let currentLetter = '';
+let speakInterval = null;
+
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function generateOptions(correctLetter) {
+    const options = [correctLetter];
+    const availableLetters = letters.filter(letter => letter !== correctLetter);
+    
+    // Add 3 random incorrect options
+    while (options.length < 4) {
+        const randomIndex = Math.floor(Math.random() * availableLetters.length);
+        options.push(availableLetters[randomIndex]);
+        availableLetters.splice(randomIndex, 1);
+    }
+    
+    return shuffleArray(options);
+}
+
+function speakLetter(letter) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    // Create utterance for the letter name
+    const utterance = new SpeechSynthesisUtterance(phoneticGuide[letter]);
+    utterance.rate = 0.8;  // Slightly slower rate
+    utterance.pitch = 1.1; // Slightly higher pitch for clarity
+    utterance.volume = 1;  // Maximum volume
+    utterance.lang = 'en-US'; // Force English pronunciation
+    
+    // Wait for voices to be loaded
+    window.speechSynthesis.onvoiceschanged = () => {
+        const voices = window.speechSynthesis.getVoices();
+        // Try to find Microsoft Zira (female voice)
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        // Fallback to any English female voice if Zira not found
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        // Use the selected voice
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        
+        window.speechSynthesis.speak(utterance);
+    };
+    
+    // Initial speak attempt (in case voices are already loaded)
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+        let selectedVoice = voices.find(voice => 
+            voice.name.includes('Zira') || 
+            (voice.name.includes('Microsoft') && voice.name.includes('Female'))
+        );
+        
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                (voice.name.toLowerCase().includes('female') || 
+                 voice.name.includes('woman') ||
+                 voice.name.includes('girl'))
+            );
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+        }
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
+function loadQuestion() {
+    // Generate new letter
+    currentLetter = letters[Math.floor(Math.random() * letters.length)];
+    
+    // Generate options
+    const options = generateOptions(currentLetter);
+    
+    // Clear previous options
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = `
+        <div class="mb-4 text-center">
+            <button id="hearAgain" class="btn btn-info mb-3">
+                <i class="fas fa-volume-up"></i> Hear Again
+            </button>
+        </div>
+        <div class="options-grid">
+            ${options.map(letter => `
+                <button class="option-button" data-letter="${letter}">
+                    ${letter}
+                </button>
+            `).join('')}
+        </div>
+    `;
+    
+    // Add click handlers
+    document.getElementById('hearAgain').onclick = () => speakLetter(currentLetter);
+    document.querySelectorAll('.option-button').forEach(button => {
+        button.onclick = () => checkAnswer(button.dataset.letter);
+    });
+    
+    // Update progress
+    const progress = (currentQuestion / totalQuestions) * 100;
+    const progressBar = document.querySelector('.progress-bar');
+    progressBar.style.width = `${progress}%`;
+    progressBar.setAttribute('aria-valuenow', progress);
+    
+    // Update question counter
+    document.querySelector('.progress').setAttribute('aria-label', `Question ${currentQuestion} of ${totalQuestions}`);
+    
+    // Speak the letter once when question loads
+    speakLetter(currentLetter);
+}
+
+function checkAnswer(selectedLetter) {
+    const buttons = document.querySelectorAll('.option-button');
+    buttons.forEach(button => {
+        button.disabled = true;
+        if (button.textContent === currentLetter) {
+            button.classList.add('correct');
+        } else if (button.textContent === selectedLetter) {
+            button.classList.add('incorrect');
+        }
+    });
+    
+    const correct = selectedLetter === currentLetter;
+    if (!correct) {
+        wrongAttempts++;
+        incorrectLetters.push(currentLetter);
+    }
+    
+    showFeedback(correct);
+    
+    setTimeout(() => {
+        if (currentQuestion < totalQuestions) {
+            currentQuestion++;
+            loadQuestion();
+        } else {
+            showResults();
+        }
+    }, 1500);
+}
+
+function showFeedback(isCorrect) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.className = 'feedback-container';
+    
+    const icon = isCorrect ? '🎉' : '❌';
+    const text = isCorrect ? 'Correct!' : 'Try Again!';
+    const textColor = isCorrect ? '#28a745' : '#dc3545';
+    
+    feedbackContainer.innerHTML = `
+        <div class="feedback-icon">${icon}</div>
+        <div class="feedback-text" style="color: ${textColor}">${text}</div>
+    `;
+    
+    document.body.appendChild(feedbackContainer);
+    
+    setTimeout(() => {
+        feedbackContainer.classList.add('fade-out');
+        setTimeout(() => {
+            document.body.removeChild(feedbackContainer);
+        }, 500);
+    }, 1500);
+}
+
+function showResults() {
+    const assessmentContent = document.getElementById('assessmentContent');
+    const resultsDiv = document.getElementById('results');
+    
+    assessmentContent.style.display = 'none';
+    resultsDiv.style.display = 'block';
+    
+    fetch('/api/save-assessment3-attempts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            wrong_attempts: wrongAttempts,
+            total_questions: totalQuestions,
+            incorrect_letters: incorrectLetters,
+            completion_time: new Date().toISOString()
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            console.error('Error saving attempts:', data.error);
+        }
+        
+        previousAttempts.push(wrongAttempts);
+        const successRate = ((totalQuestions - wrongAttempts) / totalQuestions) * 100;
+        
+        let resultContent = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="attempts-info mb-4">
+                    <h5>Performance Summary</h5>
+                    <p class="mb-2">Wrong Attempts: ${wrongAttempts}</p>
+                    <p class="mb-2">Success Rate: ${Math.round(successRate)}%</p>
+                    <p class="text-muted">
+                        ${wrongAttempts <= 2 
+                            ? 'Excellent! Your letter recognition skills are strong!' 
+                            : 'Keep practicing to improve your letter recognition skills.'}
+                    </p>
+                </div>`;
+        
+        if (previousAttempts.length > 1) {
+            resultContent += generateAttemptsHistory();
+        }
+        
+        if (incorrectLetters.length > 0) {
+            resultContent += `
+                <div class="challenging-letters mb-4">
+                    <h5>Letters to Practice</h5>
+                    <p>Focus on these letters: ${incorrectLetters.join(', ')}</p>
+                </div>`;
+        }
+        
+        // Show appropriate next steps based on score
+        if (incorrectLetters.length > 0) {
+            resultContent += `
+                <div class="mt-4">
+                    <p>Let's review the questions you found challenging.</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button onclick="startLearning()" class="btn btn-primary btn-lg">
+                            <i class="fas fa-book"></i> Start Learning Phase
+                        </button>
+                        <button onclick="restartAssessment()" class="btn btn-warning btn-lg">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-home"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>`;
+        } else {
+            resultContent += `
+                <div class="mt-4">
+                    <p class="text-success">Excellent work! You've mastered letter recognition!</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/assessment4" class="btn btn-primary btn-lg">
+                            <i class="fas fa-arrow-right"></i> Next Assessment
+                        </a>
+                        <button onclick="restartAssessment()" class="btn btn-warning btn-lg">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-home"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>`;
+        }
+        
+        resultsDiv.innerHTML = resultContent;
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resultsDiv.innerHTML = `
+            <div class="text-center">
+                <h3>Assessment Complete!</h3>
+                <div class="attempts-info mb-4">
+                    <h5>Wrong Attempts: ${wrongAttempts}</h5>
+                    <p class="text-muted">
+                        ${wrongAttempts <= 2 
+                            ? 'Excellent! Your letter recognition skills are strong!' 
+                            : 'Keep practicing to improve your letter recognition skills.'}
+                    </p>
+                </div>
+                <div class="alert alert-warning">
+                    There was an error saving your attempts. Please try again later.
+                </div>
+                <div class="mt-4">
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/dashboard" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-home"></i> Return to Dashboard
+                        </a>
+                        <a href="/letter-practice" class="btn btn-warning btn-lg">
+                            <i class="fas fa-graduation-cap"></i> Start Learning
+                        </a>
+                    </div>
+                </div>
+            </div>`;
+    });
+}
+
+function generateAttemptsHistory() {
+    let history = '<div class="attempts-history mt-4"><h5>Your Progress</h5>';
+    previousAttempts.forEach((attempts, index) => {
+        const improvement = index > 0 ? previousAttempts[index - 1] - attempts : 0;
+        const improvementClass = improvement > 0 ? 'text-success' : improvement < 0 ? 'text-danger' : '';
+        const improvementIcon = improvement > 0 ? '↑' : improvement < 0 ? '↓' : '→';
+        
+        history += `
+            <div class="attempt-item">
+                <span>Attempt ${index + 1}: ${attempts} wrong tries</span>
+                ${index > 0 ? `<span class="${improvementClass}">
+                    ${improvementIcon} ${Math.abs(improvement)} improvement
+                </span>` : ''}
+            </div>`;
+    });
+    history += '</div>';
+    return history;
+}
+
+function restartAssessment() {
+    currentQuestion = 1;
+    wrongAttempts = 0;
+    incorrectLetters = [];
+    
+    const assessmentContent = document.getElementById('assessmentContent');
+    const resultsDiv = document.getElementById('results');
+    
+    assessmentContent.style.display = 'block';
+    resultsDiv.style.display = 'none';
+    
+    loadQuestion();
+}
+
+function startAssessment() {
+    const startButton = document.getElementById('startAssessment');
+    const assessmentContent = document.getElementById('assessmentContent');
+    
+    startButton.style.display = 'none';
+    assessmentContent.style.display = 'block';
+    
+    currentQuestion = 1;
+    wrongAttempts = 0;
+    incorrectLetters = [];
+    
+    loadQuestion();
+}
+
+function startLearning() {
+    window.location.href = '/letter-practice';
+}
+
+// Initialize assessment
+document.getElementById('startAssessment').addEventListener('click', startAssessment);
+
+// Add CSS for attempts history
+const style = document.createElement('style');
+style.textContent = `
+    .attempts-history {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .attempt-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .attempt-item:last-child {
+        border-bottom: none;
+    }
+    .challenging-letters {
+        background: #fff3cd;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+    }
+    .options-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    
+    .option-button {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        font-size: 2rem;
+        font-weight: bold;
+        border: 2px solid #3498db;
+        border-radius: 8px;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .phonetic-text {
+        font-size: 0.9rem;
+        color: #666;
+        margin-top: 5px;
+        font-weight: normal;
+    }
+    
+    #hearAgain {
+        font-size: 1.2rem;
+        padding: 10px 20px;
+    }
+    
+    #hearAgain i {
+        margin-right: 8px;
+    }
+    
+    .phonetic-guide {
+        color: #666;
+        font-style: italic;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %} 
